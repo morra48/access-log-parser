@@ -4,10 +4,11 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args){
 //        System.out.println("Случайное число от 0 до 1: " + Math.random());
-//        String text = new Scanner(System.in).nextLine();
-//        System.out.println("Длина текста: " + text.length());
+        System.out.println("Введите текст и нажмите <Enter>: ");
+        String text = new Scanner(System.in).nextLine();
+        System.out.println("Длина текста: " + text.length());
 
-        // Урок 5. Задание по теме "Циклы"
+//         Урок 5. Задание по теме "Циклы"
         int numberFile = 1;
         while(true){
             System.out.print("Введите путь к файлу: ");
