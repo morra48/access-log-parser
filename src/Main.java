@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.util.Scanner;
 
 public class Main {
+    // Пользовательское исключение для слишком длинных строк
     static class LineTooLongException extends RuntimeException {
         public LineTooLongException(String message) {
             super(message);
@@ -13,30 +14,34 @@ public class Main {
     public static void main(String[] args) {
         int fileCounter = 1;
         Scanner scanner = new Scanner(System.in);
+        Statistics statistics = new Statistics();
 
         while (true) {
             System.out.print("Введите путь к файлу: ");
             String path = scanner.nextLine();
 
             File file = new File(path);
+            // Проверка существования файла
             if (!file.exists()) {
                 System.out.println("Вы ввели путь к несуществующему файлу!");
                 continue;
             }
+            // Проверка что это файл, а не папка
             if (file.isDirectory()) {
                 System.out.println("Вы ввели путь к папке!");
                 continue;
             }
 
             System.out.println("Путь указан верно! Это файл номер " + fileCounter++);
-            processFile(path);
+            processFile(path, statistics);
+
+            // Выводим статистику
+            printStatistics(statistics);
         }
     }
-
-    private static void processFile(String path) {
+    //Обрабатывает файл логов построчно
+    private static void processFile(String path, Statistics statistics) {
         int totalLines = 0;
-        int googleBotCount = 0;
-        int yandexBotCount = 0;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
             String line;
@@ -48,74 +53,35 @@ public class Main {
                     throw new LineTooLongException("Строка слишком длинная: " + line.length() + " символов");
                 }
 
-                String userAgent = extractUserAgent(line);
-                String botType = getBotType(userAgent);
-
-                if ("Googlebot".equals(botType)) {
-                    googleBotCount++;
-                } else if ("YandexBot".equals(botType)) {
-                    yandexBotCount++;
+                try {
+                    LogEntry entry = new LogEntry(line);
+                    statistics.addEntry(entry);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Ошибка парсинга строки: " + e.getMessage());
                 }
             }
 
-            if (totalLines > 0) {
-                int totalBotCount = googleBotCount + yandexBotCount;
-                double ratio = (double) totalBotCount / totalLines;
-
-                System.out.println("Общее количество запросов: " + totalLines);
-                System.out.println("Запросов от Googlebot: " + googleBotCount);
-                System.out.println("Запросов от YandexBot: " + yandexBotCount);
-                System.out.println("Доля запросов от ботов: " + ratio);
-            } else {
-                System.out.println("Файл пуст.");
-            }
+            System.out.println("Обработано строк: " + totalLines);
 
         } catch (LineTooLongException e) {
             System.out.println("Ошибка: " + e.getMessage());
-            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    //Вывод собранной статистики
+    private static void printStatistics(Statistics stats) {
+        System.out.println("=== СТАТИСТИКА ===");
+        System.out.println("Общий трафик: " + stats.getTotalTraffic() + " bytes");
+        System.out.println("Временной диапазон: " + stats.getMinTime() + " - " + stats.getMaxTime());
+        System.out.println("Средний трафик в час: " + String.format("%.2f", stats.getTrafficRate()) + " bytes/hour");
 
-    private static String extractUserAgent(String line) {
-        // Ищем последние две кавычки
-        int lastQuote = line.lastIndexOf('"');
-        if (lastQuote == -1) return null;
+        System.out.println("\nСтатистика ОС:");
+        stats.getOsStatistics().forEach((os, count) ->
+                System.out.println("  " + os + ": " + count));
 
-        int prevQuote = line.lastIndexOf('"', lastQuote - 1);
-        return prevQuote != -1 ? line.substring(prevQuote + 1, lastQuote) : null;
-    }
-
-    private static String getBotType(String userAgent) {
-        if (userAgent == null) return null;
-
-        // Извлекаем содержимое первых скобок
-        int start = userAgent.indexOf('(');
-        int end = userAgent.indexOf(')');
-        if (start == -1 || end == -1) return null;
-
-        String bracketContent = userAgent.substring(start + 1, end);
-
-        // Разделяем по точке с запятой и очищаем от пробелов
-        String[] parts = bracketContent.split(";");
-        if (parts.length < 2) return null;
-
-        for (int i = 0; i < parts.length; i++) {
-            parts[i] = parts[i].trim();
-        }
-
-        // Берем второй фрагмент и отделяем часть до слэша
-        String fragment = parts[1];
-        String programName = fragment.split("/")[0].trim();
-
-        // Проверяем, является ли ботом
-        if (programName.equals("Googlebot")) {
-            return "Googlebot";
-        } else if (programName.equals("YandexBot")) {
-            return "YandexBot";
-        }
-
-        return null;
+        System.out.println("\nСтатистика браузеров:");
+        stats.getBrowserStatistics().forEach((browser, count) ->
+                System.out.println("  " + browser + ": " + count));
     }
 }
