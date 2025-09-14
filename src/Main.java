@@ -76,7 +76,15 @@ public class Main {
         System.out.println("Временной диапазон: " + stats.getMinTime() + " - " + stats.getMaxTime());
         System.out.println("Средний трафик в час: " + String.format("%.2f", stats.getTrafficRate()) + " bytes/hour");
 
-        System.out.println("\nСтатистика ОС:");
+        System.out.println("\nСуществующие страницы сайта:");
+        stats.getExistingPages().forEach(page ->
+                System.out.println("  " + page));
+
+        System.out.println("\nСтатистика ОС (доли):");
+        stats.getOsShareStatistics().forEach((os, share) ->
+                System.out.println("  " + os + ": " + String.format("%.2f", share * 100) + "%"));
+
+        System.out.println("\nСтатистика ОС (количество):");
         stats.getOsStatistics().forEach((os, count) ->
                 System.out.println("  " + os + ": " + count));
 
