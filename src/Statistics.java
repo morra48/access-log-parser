@@ -12,7 +12,9 @@ public class Statistics {
     private final Map<String, Integer> osStatistics;
     private final Map<String, Integer> browserStatistics;
     private final Set<String> existingPages; // Для хранения существующих страниц
+    private final Set<String> notFoundPages; // Для хранения несуществующих страниц
     private final Map<String, Integer> osCountMap; // Для подсчета ОС
+    private final Map<String, Integer> browserCountMap; // Для подсчета браузеров
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -21,7 +23,9 @@ public class Statistics {
         this.osStatistics = new HashMap<>();
         this.browserStatistics = new HashMap<>();
         this.existingPages = new HashSet<>();
+        this.notFoundPages = new HashSet<>();
         this.osCountMap = new HashMap<>();
+        this.browserCountMap = new HashMap<>();
     }
 
     public void addEntry(LogEntry entry) {
@@ -50,9 +54,18 @@ public class Statistics {
             existingPages.add(entry.getPath());
         }
 
+        // Добавление несуществующих страниц (код ответа 404)
+        if (entry.getResponseCode() == 404) {
+            notFoundPages.add(entry.getPath());
+        }
+
         // Подсчет операционных систем для статистики долей
         String osType = entry.getUserAgent().getOsType();
         osCountMap.put(osType, osCountMap.getOrDefault(osType, 0) + 1);
+
+        // Подсчет браузеров для статистики долей
+        String browserType = entry.getUserAgent().getBrowserType();
+        browserCountMap.put(browserType, browserCountMap.getOrDefault(browserType, 0) + 1);
     }
 
     public double getTrafficRate() {
@@ -68,12 +81,17 @@ public class Statistics {
         return (double) totalTraffic / hoursBetween;
     }
 
-    // Возвращает список всех существующих страниц сайта
+    // Возвращает список всех существующих страниц сайта (с кодом ответа 200)
     public Set<String> getExistingPages() {
         return new HashSet<>(existingPages);
     }
 
-    // Возвращает статистику операционных систем
+    // Возвращает список всех несуществующих страниц сайта
+    public Set<String> getNotFoundPages() {
+        return new HashSet<>(notFoundPages);
+    }
+
+   // Возвращает статистику операционных систем в виде долей
     public Map<String, Double> getOsShareStatistics() {
         Map<String, Double> osShareMap = new HashMap<>();
 
@@ -81,16 +99,36 @@ public class Statistics {
             return osShareMap;
         }
 
-        // Вычисление общего количества записей
+        // Вычисляет общее количество записей
         int totalCount = osCountMap.values().stream().mapToInt(Integer::intValue).sum();
 
-        // Расчет доли для каждой ОС
+        // Рассчитываем доли для каждой ОС
         for (Map.Entry<String, Integer> entry : osCountMap.entrySet()) {
             double share = (double) entry.getValue() / totalCount;
             osShareMap.put(entry.getKey(), share);
         }
 
         return osShareMap;
+    }
+
+    // Возвращает статистику браузеров в виде долей
+    public Map<String, Double> getBrowserShareStatistics() {
+        Map<String, Double> browserShareMap = new HashMap<>();
+
+        if (browserCountMap.isEmpty()) {
+            return browserShareMap;
+        }
+
+        // Вычисление общего количества записей
+        int totalCount = browserCountMap.values().stream().mapToInt(Integer::intValue).sum();
+
+        // Рассчитываем доли для каждого браузера
+        for (Map.Entry<String, Integer> entry : browserCountMap.entrySet()) {
+            double share = (double) entry.getValue() / totalCount;
+            browserShareMap.put(entry.getKey(), share);
+        }
+
+        return browserShareMap;
     }
 
     // Дополнительные геттеры для статистики

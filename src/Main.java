@@ -76,19 +76,27 @@ public class Main {
         System.out.println("Временной диапазон: " + stats.getMinTime() + " - " + stats.getMaxTime());
         System.out.println("Средний трафик в час: " + String.format("%.2f", stats.getTrafficRate()) + " bytes/hour");
 
-        System.out.println("\nСуществующие страницы сайта:");
+        System.out.println("\nСуществующие страницы сайта (200):");
         stats.getExistingPages().forEach(page ->
+                System.out.println("  " + page));
+
+        System.out.println("\nНесуществующие страницы сайта (404):");
+        stats.getNotFoundPages().forEach(page ->
                 System.out.println("  " + page));
 
         System.out.println("\nСтатистика ОС (доли):");
         stats.getOsShareStatistics().forEach((os, share) ->
                 System.out.println("  " + os + ": " + String.format("%.2f", share * 100) + "%"));
 
+        System.out.println("\nСтатистика браузеров (доли):");
+        stats.getBrowserShareStatistics().forEach((browser, share) ->
+                System.out.println("  " + browser + ": " + String.format("%.2f", share * 100) + "%"));
+
         System.out.println("\nСтатистика ОС (количество):");
         stats.getOsStatistics().forEach((os, count) ->
                 System.out.println("  " + os + ": " + count));
 
-        System.out.println("\nСтатистика браузеров:");
+        System.out.println("\nСтатистика браузеров (количество):");
         stats.getBrowserStatistics().forEach((browser, count) ->
                 System.out.println("  " + browser + ": " + count));
     }
