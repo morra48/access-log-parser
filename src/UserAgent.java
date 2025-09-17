@@ -1,10 +1,12 @@
 public class UserAgent {
     private final String osType;
     private final String browserType;
+    private final boolean isBot;
 
     public UserAgent(String userAgentString) {
         this.osType = parseOsType(userAgentString);
         this.browserType = parseBrowserType(userAgentString);
+        this.isBot = userAgentString != null && userAgentString.toLowerCase().contains("bot");
     }
 
     private String parseOsType(String userAgent) {
@@ -39,5 +41,10 @@ public class UserAgent {
 
     public String getBrowserType() {
         return browserType;
+    }
+
+    // Метод для проверки является ли user-agent ботом
+    public boolean isBot() {
+        return isBot;
     }
 }

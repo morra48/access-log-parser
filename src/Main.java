@@ -76,6 +76,13 @@ public class Main {
         System.out.println("Временной диапазон: " + stats.getMinTime() + " - " + stats.getMaxTime());
         System.out.println("Средний трафик в час: " + String.format("%.2f", stats.getTrafficRate()) + " bytes/hour");
 
+        System.out.println("Среднее количество посещений в час (не-боты): " +
+                String.format("%.2f", stats.getAverageVisitsPerHour()));
+        System.out.println("Среднее количество ошибочных запросов в час: " +
+                String.format("%.2f", stats.getAverageErrorsPerHour()));
+        System.out.println("Средняя посещаемость одним пользователем: " +
+                String.format("%.2f", stats.getAverageVisitsPerUser()));
+
         System.out.println("\nСуществующие страницы сайта (200):");
         stats.getExistingPages().forEach(page ->
                 System.out.println("  " + page));

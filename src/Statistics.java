@@ -11,10 +11,15 @@ public class Statistics {
     private LocalDateTime maxTime;
     private final Map<String, Integer> osStatistics;
     private final Map<String, Integer> browserStatistics;
-    private final Set<String> existingPages; // Для хранения существующих страниц
-    private final Set<String> notFoundPages; // Для хранения несуществующих страниц
-    private final Map<String, Integer> osCountMap; // Для подсчета ОС
-    private final Map<String, Integer> browserCountMap; // Для подсчета браузеров
+    private final Set<String> existingPages;
+    private final Set<String> notFoundPages;
+    private final Map<String, Integer> osCountMap;
+    private final Map<String, Integer> browserCountMap;
+
+    private int totalVisits; // Общее количество посещений
+    private int nonBotVisits; // Посещения не-ботами
+    private int errorRequests; // Ошибочные запросы (4xx, 5xx)
+    private final Set<String> nonBotIps; // Уникальные IP не-ботов
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -26,9 +31,17 @@ public class Statistics {
         this.notFoundPages = new HashSet<>();
         this.osCountMap = new HashMap<>();
         this.browserCountMap = new HashMap<>();
+
+        // Инициализация новых полей
+        this.totalVisits = 0;
+        this.nonBotVisits = 0;
+        this.errorRequests = 0;
+        this.nonBotIps = new HashSet<>();
     }
 
     public void addEntry(LogEntry entry) {
+        totalVisits++;
+
         // Обновление общего трафика
         totalTraffic += entry.getDataSize();
 
@@ -66,6 +79,56 @@ public class Statistics {
         // Подсчет браузеров для статистики долей
         String browserType = entry.getUserAgent().getBrowserType();
         browserCountMap.put(browserType, browserCountMap.getOrDefault(browserType, 0) + 1);
+
+        // Проверка на бота и подсчет не-бот посещений
+        boolean isBot = entry.getUserAgent().isBot();
+        if (!isBot) {
+            nonBotVisits++;
+            nonBotIps.add(entry.getIpAddress()); // Добавляем IP не-бота
+        }
+
+        // Подсчет ошибочных запросов
+        int responseCode = entry.getResponseCode();
+        if (responseCode >= 400 && responseCode <= 599) {
+            errorRequests++;
+        }
+    }
+
+    // Метод подсчёта среднего количества посещений сайта за час
+    public double getAverageVisitsPerHour() {
+        if (minTime == null || maxTime == null || nonBotVisits == 0) {
+            return 0.0;
+        }
+
+        long hoursBetween = ChronoUnit.HOURS.between(minTime, maxTime);
+        if (hoursBetween == 0) {
+            return nonBotVisits;
+        }
+
+        return (double) nonBotVisits / hoursBetween;
+    }
+
+    // Метод подсчёта среднего количества ошибочных запросов в час
+    public double getAverageErrorsPerHour() {
+        if (minTime == null || maxTime == null || errorRequests == 0) {
+            return 0.0;
+        }
+
+        long hoursBetween = ChronoUnit.HOURS.between(minTime, maxTime);
+        if (hoursBetween == 0) {
+            return errorRequests;
+        }
+
+        return (double) errorRequests / hoursBetween;
+    }
+
+    // Метод расчёта средней посещаемости одним пользователем
+    public double getAverageVisitsPerUser() {
+        if (nonBotIps.isEmpty() || nonBotVisits == 0) {
+            return 0.0;
+        }
+
+        return (double) nonBotVisits / nonBotIps.size();
     }
 
     public double getTrafficRate() {
@@ -81,17 +144,14 @@ public class Statistics {
         return (double) totalTraffic / hoursBetween;
     }
 
-    // Возвращает список всех существующих страниц сайта (с кодом ответа 200)
     public Set<String> getExistingPages() {
         return new HashSet<>(existingPages);
     }
 
-    // Возвращает список всех несуществующих страниц сайта
     public Set<String> getNotFoundPages() {
         return new HashSet<>(notFoundPages);
     }
 
-   // Возвращает статистику операционных систем в виде долей
     public Map<String, Double> getOsShareStatistics() {
         Map<String, Double> osShareMap = new HashMap<>();
 
@@ -99,10 +159,8 @@ public class Statistics {
             return osShareMap;
         }
 
-        // Вычисляет общее количество записей
         int totalCount = osCountMap.values().stream().mapToInt(Integer::intValue).sum();
 
-        // Рассчитываем доли для каждой ОС
         for (Map.Entry<String, Integer> entry : osCountMap.entrySet()) {
             double share = (double) entry.getValue() / totalCount;
             osShareMap.put(entry.getKey(), share);
@@ -111,7 +169,6 @@ public class Statistics {
         return osShareMap;
     }
 
-    // Возвращает статистику браузеров в виде долей
     public Map<String, Double> getBrowserShareStatistics() {
         Map<String, Double> browserShareMap = new HashMap<>();
 
@@ -119,10 +176,8 @@ public class Statistics {
             return browserShareMap;
         }
 
-        // Вычисление общего количества записей
         int totalCount = browserCountMap.values().stream().mapToInt(Integer::intValue).sum();
 
-        // Рассчитываем доли для каждого браузера
         for (Map.Entry<String, Integer> entry : browserCountMap.entrySet()) {
             double share = (double) entry.getValue() / totalCount;
             browserShareMap.put(entry.getKey(), share);
@@ -131,7 +186,6 @@ public class Statistics {
         return browserShareMap;
     }
 
-    // Дополнительные геттеры для статистики
     public long getTotalTraffic() { return totalTraffic; }
     public LocalDateTime getMinTime() { return minTime; }
     public LocalDateTime getMaxTime() { return maxTime; }
