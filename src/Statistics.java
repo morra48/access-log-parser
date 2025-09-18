@@ -16,10 +16,14 @@ public class Statistics {
     private final Map<String, Integer> osCountMap;
     private final Map<String, Integer> browserCountMap;
 
-    private int totalVisits; // Общее количество посещений
-    private int nonBotVisits; // Посещения не-ботами
-    private int errorRequests; // Ошибочные запросы (4xx, 5xx)
-    private final Set<String> nonBotIps; // Уникальные IP не-ботов
+    private int totalVisits;
+    private int nonBotVisits;
+    private int errorRequests;
+    private final Set<String> nonBotIps;
+
+    private final Map<Long, Integer> visitsPerSecond; // Посещения по секундам (не-боты)
+    private final Set<String> refererDomains; // Домены рефереров
+    private final Map<String, Integer> visitsPerUser; // Посещения по пользователям (IP не-ботов)
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -32,11 +36,15 @@ public class Statistics {
         this.osCountMap = new HashMap<>();
         this.browserCountMap = new HashMap<>();
 
-        // Инициализация новых полей
         this.totalVisits = 0;
         this.nonBotVisits = 0;
         this.errorRequests = 0;
         this.nonBotIps = new HashSet<>();
+
+        // Инициализация новых полей
+        this.visitsPerSecond = new HashMap<>();
+        this.refererDomains = new HashSet<>();
+        this.visitsPerUser = new HashMap<>();
     }
 
     public void addEntry(LogEntry entry) {
@@ -80,11 +88,28 @@ public class Statistics {
         String browserType = entry.getUserAgent().getBrowserType();
         browserCountMap.put(browserType, browserCountMap.getOrDefault(browserType, 0) + 1);
 
-        // Проверка на бота и подсчет не-бот посещений
+        // Проверка на бота
         boolean isBot = entry.getUserAgent().isBot();
+
         if (!isBot) {
             nonBotVisits++;
-            nonBotIps.add(entry.getIpAddress()); // Добавляем IP не-бота
+            nonBotIps.add(entry.getIpAddress());
+
+            // Подсчет посещений по секундам (для пиковой посещаемости)
+            long secondTimestamp = entry.getDateTime().toEpochSecond(java.time.ZoneOffset.UTC);
+            visitsPerSecond.put(secondTimestamp, visitsPerSecond.getOrDefault(secondTimestamp, 0) + 1);
+
+            // Подсчет посещений по пользователям (для максимальной посещаемости)
+            String ip = entry.getIpAddress();
+            visitsPerUser.put(ip, visitsPerUser.getOrDefault(ip, 0) + 1);
+        }
+
+        // Сбор доменов рефереров
+        if (entry.getReferer() != null && !entry.getReferer().equals("-")) {
+            String domain = extractDomainFromUrl(entry.getReferer());
+            if (domain != null) {
+                refererDomains.add(domain);
+            }
         }
 
         // Подсчет ошибочных запросов
@@ -94,7 +119,71 @@ public class Statistics {
         }
     }
 
-    // Метод подсчёта среднего количества посещений сайта за час
+    // Вспомогательный метод для извлечения домена из referer
+    private String extractDomainFromUrl(String referer) {
+        if (referer == null || referer.equals("-") || referer.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            if (referer.contains("://")) {
+                java.net.URI uri = new java.net.URI(referer);
+                String host = uri.getHost();
+                if (host != null) {
+                    if (host.startsWith("www.")) {
+                        return host.substring(4);
+                    }
+                    return host;
+                }
+            }
+
+            // Если это не URL, а строка параметров ищем паттерны, похожие на домены
+            if (referer.contains(".")) {
+                String[] parts = referer.split("[&?=]");
+                for (String part : parts) {
+                    part = part.trim();
+                    if (part.matches("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+                        if (part.startsWith("www.")) {
+                            part = part.substring(4);
+                        }
+                        return part;
+                    }
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Метод расчёта пиковой посещаемости сайта в секунду
+    public int getPeakVisitsPerSecond() {
+        if (visitsPerSecond.isEmpty()) {
+            return 0;
+        }
+
+        return visitsPerSecond.values().stream()
+                .max(Integer::compare)
+                .orElse(0);
+    }
+
+    // Метод, возвращающий список сайтов-рефереров
+    public Set<String> getRefererDomains() {
+        return new HashSet<>(refererDomains);
+    }
+
+    // Метод расчёта максимальной посещаемости одним пользователем
+    public int getMaxVisitsPerUser() {
+        if (visitsPerUser.isEmpty()) {
+            return 0;
+        }
+
+        return visitsPerUser.values().stream()
+                .max(Integer::compare)
+                .orElse(0);
+    }
+
+    // Остальные существующие методы остаются без изменений
     public double getAverageVisitsPerHour() {
         if (minTime == null || maxTime == null || nonBotVisits == 0) {
             return 0.0;
@@ -108,7 +197,6 @@ public class Statistics {
         return (double) nonBotVisits / hoursBetween;
     }
 
-    // Метод подсчёта среднего количества ошибочных запросов в час
     public double getAverageErrorsPerHour() {
         if (minTime == null || maxTime == null || errorRequests == 0) {
             return 0.0;
@@ -122,7 +210,6 @@ public class Statistics {
         return (double) errorRequests / hoursBetween;
     }
 
-    // Метод расчёта средней посещаемости одним пользователем
     public double getAverageVisitsPerUser() {
         if (nonBotIps.isEmpty() || nonBotVisits == 0) {
             return 0.0;
@@ -191,4 +278,8 @@ public class Statistics {
     public LocalDateTime getMaxTime() { return maxTime; }
     public Map<String, Integer> getOsStatistics() { return osStatistics; }
     public Map<String, Integer> getBrowserStatistics() { return browserStatistics; }
+    public int getTotalVisits() { return totalVisits; }
+    public int getNonBotVisits() { return nonBotVisits; }
+    public int getErrorRequests() { return errorRequests; }
+    public int getUniqueNonBotIps() { return nonBotIps.size(); }
 }

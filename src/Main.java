@@ -83,13 +83,20 @@ public class Main {
         System.out.println("Средняя посещаемость одним пользователем: " +
                 String.format("%.2f", stats.getAverageVisitsPerUser()));
 
-        System.out.println("\nСуществующие страницы сайта (200):");
-        stats.getExistingPages().forEach(page ->
-                System.out.println("  " + page));
+        System.out.println("Пиковая посещаемость в секунду: " + stats.getPeakVisitsPerSecond());
+        System.out.println("Максимальная посещаемость одним пользователем: " + stats.getMaxVisitsPerUser());
 
-        System.out.println("\nНесуществующие страницы сайта (404):");
-        stats.getNotFoundPages().forEach(page ->
-                System.out.println("  " + page));
+        System.out.println("\nСайты-рефереры:");
+        stats.getRefererDomains().forEach(domain ->
+                System.out.println("  " + domain));
+
+//        System.out.println("\nСуществующие страницы сайта (200):");
+//        stats.getExistingPages().forEach(page ->
+//                System.out.println("  " + page));
+//
+//        System.out.println("\nНесуществующие страницы сайта (404):");
+//        stats.getNotFoundPages().forEach(page ->
+//                System.out.println("  " + page));
 
         System.out.println("\nСтатистика ОС (доли):");
         stats.getOsShareStatistics().forEach((os, share) ->
